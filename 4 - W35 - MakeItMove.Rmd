@@ -1,0 +1,220 @@
+---
+title: "HW5 - Make Data Move"
+author: "Daniel Blumenkranz"
+date: "05/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#  Explore global development with R
+Today, you will load a filtered gapminder dataset -  with a subset of data on global development from 1952 - 2007 in increments of 5 years - to capture the period between the Second World War and the Global Financial Crisis. 
+
+**Your task: Explore the data and visualise it in both static and animated ways, providing answers and solutions to 7 questions/tasks below.**
+
+## Get the necessary packages
+First, start with installing the relevant packages 'tidyverse', 'gganimate', and 'gapminder'.
+
+```{r libraries, echo = FALSE}
+# install.packages("gganimate")
+# install.packages("gifski")
+# install.packages("av")
+# install.packages("gapminder")
+library(tidyverse)
+library(gganimate)
+library(gifski)
+library(av)
+library(gapminder)
+```
+
+## Look at the data and tackle the tasks
+First, see which specific years are actually represented in the dataset and what variables are being recorded for each country. Note that when you run the cell below, Rmarkdown will give you two results - one for each line - that you can flip between.
+```{r}
+str(gapminder)
+unique(gapminder$year)
+head(gapminder)
+```
+
+The dataset contains information on each country in the sampled year, its continent, life expectancy, population, and GDP per capita.
+
+Let's plot all the countries in 1952.
+```{r 1952}
+theme_set(theme_bw())  # set theme to white background for better visibility
+
+ggplot(subset(gapminder, year == 1952), aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  scale_x_log10() 
+```
+
+...
+
+We see an interesting spread with an outlier to the right. Answer the following questions, please:
+
+
+1. *Why does it make sense to have a log10 scale on x axis?*
+If we put GDP per capita on a regular scale, as plotted below, we see that all the non-outlier data points must be squeezed together in order to accommodate the outlier data point in the plot, which makes the plot less informative. However, if we were to remove the outlier point, also plotted below, the rest of the points are spread out nicely on the regular scale. In this case, the regular scale might be preferable over the log-scale, since the log-scale isn't as intuitively understood by humans. On the other hand, the log-scale makes the data points more horizontally distributed, making them more visually separable. The data points are still fairly separable on the log-scale if we keep the outlier (as we should) making it sensible to use the log-scale in this case.     
+```{r}
+ggplot(subset(gapminder, year == 1952), aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  labs(title = 'Regular x-axis')
+
+ggplot(subset(gapminder, year == 1952 & gdpPercap<30000), aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  labs(title = 'Regular x-axis, outlier removed')
+
+ggplot(subset(gapminder, year == 1952 & gdpPercap<30000), aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  labs(title = 'Log10 x-axis, outlier removed') +
+  scale_x_log10()
+```
+
+
+
+2. *Who is the outlier (the richest country in 1952 - far right on x axis)?* 
+```{r}
+filter(gapminder, year==1952 & gdpPercap > 30000)
+```
+
+
+Next, you can generate a similar plot for 2007 and compare the differences
+```{r 2007}
+ggplot(subset(gapminder, year == 2007), aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  scale_x_log10() 
+```
+
+...
+
+The black bubbles are a bit hard to read, the comparison would be easier with a bit more visual differentiation.
+
+Tasks:
+
+3. *Differentiate the **continents** by color, and fix the axis labels and units to be more legible (**Hint**: the 2.50e+08 is so called "scientific notation", which you might want to eliminate)*
+```{r}
+# Load the scales package for removing scientific notation in legend
+library(scales)
+
+ggplot(subset(gapminder, year == 2007), aes(gdpPercap, lifeExp, size = pop, color = continent)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_size_continuous(labels = comma) + # removes sci-notation
+  labs(x='GDP per capita', y='Life expectancy', color='Continent', size='Population size')
+```
+
+
+4. *What are the five richest countries in the world in 2007?*
+```{r}
+gapminder %>% filter(year==2007) %>% arrange(desc(gdpPercap)) %>% slice(1:5)
+```
+
+
+##  Make it move!
+
+The comparison would be easier if we had the two graphs together, animated. We have a lovely tool in R to do this: the `gganimate` package. Beware that there may be other packages your operating system needs in order to glue interim images into an animation or video. Read the messages when installing the package.
+
+Also, there are *two* ways of animating the gapminder ggplot.
+
+### Option 1: Animate using transition_states() 
+
+The first step is to create the object-to-be-animated
+```{r anim1 start}
+anim <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  scale_x_log10()
+anim
+```
+
+...
+
+This plot collates all the points across time. The next step is to split it into years and animate it. This may take some time, depending on the processing power of your computer (and other things you are asking it to do). Beware that the animation might appear in the bottom right 'Viewer' pane, not in this rmd preview. You need to `knit` the document to get the visual inside an html file.
+
+```{r anim1}
+anim + transition_states(year, 
+                      transition_length = 1,
+                      state_length = 1)
+
+```
+...
+
+Notice how the animation moves jerkily, 'jumping' from one year to the next 12 times in total. This is a bit clunky, which is why it's good we have another option. 
+
+
+### Option 2 Animate using transition_time()
+This option smoothes the transition between different 'frames', because it interpolates and adds transitional years where there are gaps in the timeseries data.
+
+```{r anim2}
+anim2 <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop)) +
+  geom_point() +
+  scale_x_log10() +
+  transition_time(year)
+anim2
+```
+
+The much smoother movement in Option 2 will be much more noticeable if you add a title to the chart, that will page through the years corresponding to each frame.
+
+Now, choose one of the animation options and get it to work. You may need to troubleshoot your installation of `gganimate` and other packages 
+
+
+5. *Can you add a title to one or both of the animations above that will change* 
+ *in sync with the animation?* *(**Hint**: search labeling for `transition_states()` and `transition_time()` functions respectively)*
+```{r}
+anim2 + labs(title='Year: {frame_time}')
+```
+
+
+
+6. *Can you made the axes' labels and units more readable? Consider expanding the abreviated lables as well as the scientific notation in the legend and x axis to whole numbers.*
+```{r}
+ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, color = continent)) +
+  geom_point() +
+  scale_size_continuous(labels = comma) +
+  scale_x_continuous(labels = comma, trans = 'log10') +
+  transition_time(year) +
+  labs(x='GDP per capita', y='Life expectancy', color='Continent', size='Population size', title='Year: {frame_time}')
+```
+
+
+7. *Come up with a question you want to answer using the gapminder data and write it down. Then, create a data visualisation that answers the question and explain how your visualization answers the question. (Example: you wish to see what was mean life expectancy across the continents in the year you were born versus your parents' birth years). [Hint: if you wish to have more data than is in the filtered gapminder, you can load either the `gapminder_unfiltered` dataset and download more at https://www.gapminder.org/data/ ]*
+
+How has the mean population size within each continent changed from 1952 to 2007?
+```{r}
+# Prepare data frame for ggplot
+continent_pop <- gapminder %>% 
+  group_by(continent, year) %>%
+  summarise(mean_pop=mean(pop)) %>% 
+  filter(year==1952 | year==2007)
+
+# Prepare a second data frame with additional info which will be added to the first data frame
+continent_pop2 <- data.frame(continent=c('Africa', 'Americas', 'Asia', 'Europe', 'Oceania'), year=rep('Growth', 5), mean_pop=rep(0, 5))
+
+# A for-loop that calculates the growth in mean population size within each continent and puts the result in the second data frame.
+for (i in continent_pop2$continent){
+  n <- which(continent_pop2$continent == i)
+  
+  year1952 <- continent_pop[continent_pop$continent==i & continent_pop$year==1952,]$mean_pop
+  year2007 <- continent_pop[continent_pop$continent==i & continent_pop$year==2007,]$mean_pop
+  
+  continent_pop2$mean_pop[n] <- as.integer(year2007-year1952)
+}
+
+# Combine the two data frames
+continent_pop$year <- as.character(continent_pop$year)
+continent_pop <- rbind(continent_pop, continent_pop2)
+
+# Factorize the year column to make it compliant with ggplot 
+continent_pop$year <- as.factor(continent_pop$year)
+
+# Draw the plot
+ggplot(continent_pop, aes(x=continent, y=mean_pop, fill=year)) +
+  geom_bar(position = 'dodge', stat = 'identity') +
+  scale_y_continuous(labels = comma) +
+  scale_fill_discrete(name=NULL) +
+  theme(panel.grid.major.x = element_blank()) +
+  labs(x='Continent', y='Mean population size', fill='Year')
+```
+
+
+From the plot we see that the mean population size has increased in all continents from 1952 to 2007, and by adding the Growth-bars we can more easily see by how much. We see that the Growth-bar for Asia is by far the tallest, but that's not a surprise considering that population sizes increase exponentially and Asia had the greatest population size from the start in 1952. By comparing the height of the 1952-bar and Growth-bar we get a better picture of how reproductive the different populations have been. We see that in Europe, the mean population size has increased by less than 50% (the Growth-bar is not even half the height of the 1952-bar) while in Africa, the mean population size has increased by more than 100%, making it the continent with the greatest mean population size growth rate. 
+
