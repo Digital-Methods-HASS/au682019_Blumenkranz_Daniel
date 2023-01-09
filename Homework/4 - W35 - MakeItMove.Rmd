@@ -1,5 +1,5 @@
 ---
-title: "HW5 - Make Data Move"
+title: "Homework 4 - Make Data Move"
 author: "Daniel Blumenkranz"
 date: "05/10/2020"
 output: html_document
@@ -17,7 +17,7 @@ Today, you will load a filtered gapminder dataset -  with a subset of data on gl
 ## Get the necessary packages
 First, start with installing the relevant packages 'tidyverse', 'gganimate', and 'gapminder'.
 
-```{r libraries, echo = FALSE}
+```{r libraries, warning=FALSE}
 # install.packages("gganimate")
 # install.packages("gifski")
 # install.packages("av")
@@ -92,7 +92,7 @@ The black bubbles are a bit hard to read, the comparison would be easier with a 
 Tasks:
 
 3. *Differentiate the **continents** by color, and fix the axis labels and units to be more legible (**Hint**: the 2.50e+08 is so called "scientific notation", which you might want to eliminate)*
-```{r}
+```{r, warning=FALSE}
 # Load the scales package for removing scientific notation in legend
 library(scales)
 
